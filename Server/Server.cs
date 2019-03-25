@@ -13,14 +13,11 @@ namespace Server
     {
         private const int ConnectionServicePort = 27000;
 
-        private const int DrawingServicePort = 27001;
         private static readonly Server ServerInstance = new Server();
 
         private readonly List<IPEndPoint> clients = new List<IPEndPoint>();
 
         private UdpClient connectionService;
-
-        private UdpClient pointDrawingService;
 
         private Server()
         {
@@ -69,10 +66,6 @@ namespace Server
             // Add client to list
             this.clients.Add(clientEndPoint);
 
-            // Send answer with drawing port
-            byte[] answer = { DrawingServicePort / byte.MaxValue, DrawingServicePort % byte.MaxValue};
-            this.connectionService.SendAsync(answer, answer.Length, clientEndPoint);
-
             Console.WriteLine($"{clientEndPoint} connected!");
         }
 
@@ -87,17 +80,16 @@ namespace Server
             Console.WriteLine($"{clientEndPoint} disconnected!");
         }
 
-        private bool InitializeServices()
+        private bool InitializeService()
         {
             try
             {
                 this.connectionService = new UdpClient(new IPEndPoint(IPAddress.Any, ConnectionServicePort));
-                this.pointDrawingService = new UdpClient(new IPEndPoint(IPAddress.Any, DrawingServicePort));
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to initialize udp services. {ex.Message}");
+                Console.WriteLine($"Failed to initialize udp service. {ex.Message}");
                 return false;
             }
         }
@@ -106,7 +98,7 @@ namespace Server
         {
             Console.WriteLine("Server started...");
 
-            if (!this.InitializeServices())
+            if (!this.InitializeService())
                 return;
 
             this.HandleClientsConnections();
