@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -21,7 +22,7 @@ namespace Server
 
         private readonly List<IPEndPoint> clients = new List<IPEndPoint>();
 
-        private UdpClient connectionService;
+        private UdpClient connectionService; // TODO: Investigate if having second "connection" wouldn't be better
 
         private Server()
         {
@@ -48,9 +49,13 @@ namespace Server
             }
         }
 
-        private void HandleDrawingData(byte[] data)
+        private void HandleDrawingData(IPEndPoint client, byte[] data)
         {
-
+            // TODO: send this with a separate thread, maybe add to blocking queue?
+            foreach (var ipEndPoint in this.clients.Where(v => v != client))
+            {
+                this.connectionService.SendAsync(data, data.Length, ipEndPoint);
+            }
         }
 
         /// <summary>
@@ -66,8 +71,8 @@ namespace Server
 
                 if (data[0] == MessageCode)
                     this.HandleMessage(clientEndPoint, Encoding.ASCII.GetString(data, 1, data.Length - 1));
-                else
-                    this.HandleDrawingData(data);
+                else if (data[0] == DrawingCode)
+                    this.HandleDrawingData(clientEndPoint, data.Skip(1).ToArray());
             }
         }
 
