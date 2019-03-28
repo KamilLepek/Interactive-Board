@@ -11,6 +11,10 @@ namespace Server
     /// </summary>
     internal class Server
     {
+        private const int MessageCode = 48;
+
+        private const int DrawingCode = 49;
+
         private const int ConnectionServicePort = 27000;
 
         private static readonly Server ServerInstance = new Server();
@@ -28,30 +32,42 @@ namespace Server
             return ServerInstance;
         }
 
+        private void HandleMessage(IPEndPoint clientEndPoint, string msg)
+        {
+            switch (msg)
+            {
+                case "Connect":
+                    this.HandleConnectionAttempt(clientEndPoint);
+                    break;
+                case "Disconnect":
+                    this.HandleDisconnectionAttempt(clientEndPoint);
+                    break;
+                default:
+                    Console.WriteLine($"Wrong message received: {msg}");
+                    break;
+            }
+        }
+
+        private void HandleDrawingData(byte[] data)
+        {
+
+        }
+
         /// <summary>
         ///     Handle all the data send via UDP to the connectionServicePort.
         /// </summary>
-        private void HandleClientsConnections()
+        private void HandleDataReceived()
         {
             while (true)
             {
                 // Read the message and the IP end point that send it
                 var clientEndPoint = new IPEndPoint(IPAddress.Any, 0);
                 var data = this.connectionService.Receive(ref clientEndPoint);
-                string msg = Encoding.ASCII.GetString(data, 0, data.Length);
 
-                switch (msg)
-                {
-                    case "Connect":
-                        this.HandleConnectionAttempt(clientEndPoint);
-                        break;
-                    case "Disconnect":
-                        this.HandleDisconnectionAttempt(clientEndPoint);
-                        break;
-                    default:
-                        Console.WriteLine($"Wrong message received: {msg}");
-                        break;
-                }
+                if (data[0] == MessageCode)
+                    this.HandleMessage(clientEndPoint, Encoding.ASCII.GetString(data, 1, data.Length - 1));
+                else
+                    this.HandleDrawingData(data);
             }
         }
 
@@ -101,7 +117,7 @@ namespace Server
             if (!this.InitializeService())
                 return;
 
-            this.HandleClientsConnections();
+            this.HandleDataReceived();
         }
     }
 }

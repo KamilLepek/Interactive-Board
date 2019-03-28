@@ -6,8 +6,9 @@
         xmlns:local="clr-namespace:InteractiveBoard"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
-    <Grid>
+    <Grid Background="#FFBF2A2A">
         <Button x:Name="Connect" Content="Connect" HorizontalAlignment="Left" VerticalAlignment="Top" Width="125" Height="94" Click="ConnectionButtonClick"/>
         <Button x:Name="Disconnect" Content="Disconnect" HorizontalAlignment="Left" VerticalAlignment="Top" Width="125" Margin="0,99,0,0" Height="97" Click="DisconnectionButtonClick"/>
+        <Canvas x:Name="Paint" HorizontalAlignment="Left" Height="299" Margin="223,78,0,0" VerticalAlignment="Top" Width="510" Background="#FFF9F0F0" MouseMove="Paint_MouseMove" MouseDown="Paint_MouseDown"/>
     </Grid>
 </Window>
