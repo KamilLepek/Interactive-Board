@@ -12,9 +12,9 @@ namespace Server
     /// </summary>
     internal class Server
     {
-        private const int MessageCode = 48;
+        private const int MessageCode = 0;
 
-        private const int DrawingCode = 49;
+        private const int DrawingCode = 1;
 
         private const int ConnectionServicePort = 27000;
 
@@ -22,7 +22,7 @@ namespace Server
 
         private readonly List<IPEndPoint> clients = new List<IPEndPoint>();
 
-        private UdpClient connectionService; // TODO: Investigate if having second "connection" wouldn't be better
+        private UdpClient connectionService;
 
         private Server()
         {

@@ -3,12 +3,29 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:InteractiveBoard"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid Background="#FFBF2A2A">
-        <Button x:Name="Connect" Content="Connect" HorizontalAlignment="Left" VerticalAlignment="Top" Width="125" Height="94" Click="ConnectionButtonClick"/>
-        <Button x:Name="Disconnect" Content="Disconnect" HorizontalAlignment="Left" VerticalAlignment="Top" Width="125" Margin="0,99,0,0" Height="97" Click="DisconnectionButtonClick" IsEnabled="False"/>
-        <Canvas x:Name="Paint" HorizontalAlignment="Left" Height="299" Margin="223,78,0,0" VerticalAlignment="Top" Width="510" Background="#FFF9F0F0" MouseMove="Paint_MouseMove" MouseDown="Paint_MouseDown"/>
+        Title="Interactive Board" Height="450" Width="800" Closed="MainWindow_OnClosed">
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                <GradientStop Color="Black" Offset="0"/>
+                <GradientStop Color="#FF614444" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="67*"/>
+            <ColumnDefinition Width="17*"/>
+            <ColumnDefinition Width="708*"/>
+        </Grid.ColumnDefinitions>
+        <Button x:Name="ConnectButton" Content="Connect" HorizontalAlignment="Left" VerticalAlignment="Top" Width="81" Height="43" Click="ConnectionButtonClick" Grid.ColumnSpan="3" Margin="10,175,0,0"/>
+        <Button x:Name="DisconnectButton" Content="Disconnect" HorizontalAlignment="Left" VerticalAlignment="Top" Width="81" Margin="10,223,0,0" Height="43" Click="DisconnectionButtonClick" IsEnabled="False" Grid.ColumnSpan="3" Grid.Column="0" />
+        <Canvas x:Name="Paint" HorizontalAlignment="Left" Height="400" Margin="26,10,0,0" VerticalAlignment="Top" Width="672" Background="#FFF9F0F0" MouseMove="Paint_MouseMove" MouseDown="Paint_MouseDown" Grid.Column="2"/>
+        <Slider Grid.Column="0" x:Name="RSlider" HorizontalAlignment="Left" Margin="20,292,0,0" VerticalAlignment="Top" Width="54" Background="#FFE86969" ValueChanged="UpdateColor" Maximum="255" Grid.ColumnSpan="2"/>
+        <Slider Grid.Column="0" x:Name="GSlider" HorizontalAlignment="Left" Margin="20,319,0,0" VerticalAlignment="Top" Width="54" Background="#FF87CF55" ValueChanged="UpdateColor" Maximum="255" Grid.ColumnSpan="2"/>
+        <Slider Grid.Column="0" x:Name="BSlider" HorizontalAlignment="Left" Margin="20,346,0,0" VerticalAlignment="Top" Width="54" Background="#FF527ECB" ValueChanged="UpdateColor" Maximum="255" Grid.ColumnSpan="2"/>
+        <Label x:Name="ServerLabel" Grid.Column="0" Content="Server:" HorizontalAlignment="Left" Height="26" VerticalAlignment="Top" Width="64" Foreground="#FFFFF5F5"/>
+        <Label Grid.Column="0" x:Name="PortLabel" Content="Port:" HorizontalAlignment="Left" Margin="0,68,0,0" VerticalAlignment="Top" Height="28" Width="54" Foreground="White"/>
+        <TextBox x:Name="ServerTextBox" Grid.ColumnSpan="3" Grid.Column="0" HorizontalAlignment="Left" Height="25" Margin="0,26,0,0" TextWrapping="Wrap" Text="127.0.0.1" VerticalAlignment="Top" Width="105"/>
+        <TextBox x:Name="PortTextBox" Grid.ColumnSpan="3" Grid.Column="0" HorizontalAlignment="Left" Height="25" Margin="0,96,0,0" TextWrapping="Wrap" Text="27000" VerticalAlignment="Top" Width="105"/>
     </Grid>
 </Window>
