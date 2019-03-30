@@ -1,36 +1,41 @@
-﻿using System;
-using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Shapes;
-
-namespace InteractiveBoard
+﻿namespace InteractiveBoard
 {
+    using System;
+    using System.IO;
+    using System.Net;
+    using System.Net.Sockets;
+    using System.Runtime.Serialization;
+    using System.Runtime.Serialization.Formatters.Binary;
+    using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using System.Windows;
+    using System.Windows.Input;
+    using System.Windows.Media;
+    using System.Windows.Shapes;
+
     /// <summary>
     ///     Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
+        private const string ConnectionMessage = "Connect";
 
-        private const int MessageCode = 0;
+        private const string DisconnectionMessage = "Disconnect";
 
         private const int DrawingCode = 1;
 
+        private const int MessageCode = 0;
+
         private readonly UdpClient udpClient = new UdpClient();
 
-        private Point currentPosition;
+        private bool connected;
 
         private Color currentColor;
 
-        private bool connected;
+        private Point currentCursorPosition;
+
+        private IPEndPoint serverEndPoint;
 
         public MainWindow()
         {
@@ -38,43 +43,28 @@ namespace InteractiveBoard
             this.currentColor = Colors.Black;
         }
 
+        /// <summary>
+        ///     Sends a connection packet to the server
+        /// </summary>
         private void Connect()
         {
-            (bool result, string ip, int port) = this.ValidateConnectionInfo();
+            (bool result, IPAddress ip, int port) = this.ValidateConnectionInfo();
             if (!result)
             {
                 MessageBox.Show("Invalid Server address!");
                 return;
             }
 
-            this.udpClient.Connect(ip, port);
-            const string msg = "Connect";
-            var stringData = Encoding.ASCII.GetBytes(msg);
+            this.serverEndPoint = new IPEndPoint(ip, port);
+            this.udpClient.Connect(this.serverEndPoint);
+            var stringData = Encoding.ASCII.GetBytes(ConnectionMessage);
             var data = new byte[stringData.Length + 1];
             stringData.CopyTo(data, 1);
             data[0] = MessageCode;
-            this.udpClient.SendAsync(data, data.Length); // TODO: do some response from server to make sure
-            this.connected = true;
-            this.ConnectButton.IsEnabled = false;
-            this.ServerTextBox.IsEnabled = false;
-            this.PortTextBox.IsEnabled = false;
-            this.DisconnectButton.IsEnabled = true;
-            this.ReceiveData();
-        }
+            this.udpClient.Send(data, data.Length);
 
-        private void Disconnect()
-        {
-            const string msg = "Disconnect";
-            var stringData = Encoding.ASCII.GetBytes(msg);
-            byte[] data = new byte[stringData.Length + 1];
-            stringData.CopyTo(data, 1);
-            data[0] = MessageCode;
-            this.udpClient.SendAsync(data, data.Length);
-            this.connected = false;
-            this.ConnectButton.IsEnabled = true;
-            this.ServerTextBox.IsEnabled = true;
-            this.PortTextBox.IsEnabled = true;
-            this.DisconnectButton.IsEnabled = false;
+            this.NegateConnectionFlags();
+            this.ReceiveData();
         }
 
         private void ConnectionButtonClick(object sender, RoutedEventArgs e)
@@ -82,35 +72,17 @@ namespace InteractiveBoard
             this.Connect();
         }
 
-        private (bool, string, int ) ValidateConnectionInfo()
+        /// <summary>
+        ///     Sends disconnection packet to the server
+        /// </summary>
+        private void Disconnect()
         {
-            bool result = int.TryParse(this.PortTextBox.Text, out int port) &&
-                          IPAddress.TryParse(this.ServerTextBox.Text, out _);
-            return (result, this.ServerTextBox.Text, port);
-        }
-
-        private void ReceiveData()
-        {
-            Task.Run(() =>
-            {
-                while (true)
-                {
-                    if (!this.connected)
-                        Thread.Sleep(TimeSpan.FromSeconds(1));
-                    var serverEndPoint = new IPEndPoint(IPAddress.Any, 0);
-                    var data = this.udpClient.Receive(ref serverEndPoint);
-
-                    DrawingPacket packet;
-                    IFormatter formatter = new BinaryFormatter();
-                    using (MemoryStream stream = new MemoryStream(data))
-                    {
-                        packet = (DrawingPacket)formatter.Deserialize(stream);
-                    }
-
-                    // To invoke outside of STA thread
-                    this.Dispatcher.BeginInvoke((Action)(() => this.DrawLine((Color)ColorConverter.ConvertFromString(packet.Color), packet.Points)));
-                }
-            });
+            var stringData = Encoding.ASCII.GetBytes(DisconnectionMessage);
+            var data = new byte[stringData.Length + 1];
+            stringData.CopyTo(data, 1);
+            data[0] = MessageCode;
+            this.udpClient.Send(data, data.Length);
+            this.NegateConnectionFlags();
         }
 
         private void DisconnectionButtonClick(object sender, RoutedEventArgs e)
@@ -121,15 +93,39 @@ namespace InteractiveBoard
         private void DrawLine(Color color, double[] points)
         {
             var line = new Line
-            {
-                Stroke = new SolidColorBrush(color),
-                X1 = points[0],
-                Y1 = points[1],
-                X2 = points[2],
-                Y2 = points[3]
-            };
+                           {
+                               Stroke = new SolidColorBrush(color),
+                               X1 = points[0],
+                               Y1 = points[1],
+                               X2 = points[2],
+                               Y2 = points[3]
+                           };
 
             this.Paint.Children.Add(line);
+        }
+
+        private void MainWindow_OnClosed(object sender, EventArgs e)
+        {
+            if (this.connected)
+                this.Disconnect();
+        }
+
+        /// <summary>
+        ///     Changes the state of the app to the opposite.
+        ///     Either from connected to disconnected or from disconnected to connected.
+        /// </summary>
+        private void NegateConnectionFlags()
+        {
+            this.connected = !this.connected;
+            this.ConnectButton.IsEnabled = !this.ConnectButton.IsEnabled;
+            this.ServerTextBox.IsEnabled = !this.ServerTextBox.IsEnabled;
+            this.PortTextBox.IsEnabled = !this.PortTextBox.IsEnabled;
+            this.DisconnectButton.IsEnabled = !this.DisconnectButton.IsEnabled;
+        }
+
+        private void Paint_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            this.currentCursorPosition = e.GetPosition(this.Paint);
         }
 
         private void Paint_MouseMove(object sender, MouseEventArgs e)
@@ -137,31 +133,81 @@ namespace InteractiveBoard
             if (e.LeftButton != MouseButtonState.Pressed)
                 return;
 
-           double[] points =
-           {
-               this.currentPosition.X,
-               this.currentPosition.Y,
-               e.GetPosition(this.Paint).X,
-               e.GetPosition(this.Paint).Y
-           };
+            double[] points =
+                {
+                    this.currentCursorPosition.X,
+                    this.currentCursorPosition.Y,
+                    e.GetPosition(this.Paint).X,
+                    e.GetPosition(this.Paint).Y
+                };
 
             this.DrawLine(this.currentColor, points);
 
             if (this.connected)
                 this.SendDrawingData(this.currentColor, points);
 
-            this.currentPosition = e.GetPosition(this.Paint);
+            this.currentCursorPosition = e.GetPosition(this.Paint);
         }
 
-        private void Paint_MouseDown(object sender, MouseButtonEventArgs e)
+        /// <summary>
+        ///     Starts a new task which is receiving data.
+        /// </summary>
+        private void ReceiveData()
         {
-            this.currentPosition = e.GetPosition(this.Paint);
+            Task.Run(
+                () =>
+                    {
+                        var errorCount = 0; // Counts consecutive deserialization errors.
+                        while (true)
+                        {
+                            if (!this.connected)
+                            {
+                                Thread.Sleep(TimeSpan.FromSeconds(1));
+                                continue;
+                            }
+
+                            var sender = new IPEndPoint(IPAddress.Any, 0);
+                            var data = this.udpClient.Receive(ref sender);
+
+                            // Accept data from server only
+                            if (!sender.Address.Equals(this.serverEndPoint.Address))
+                                continue;
+
+                            try
+                            {
+                                DrawingPacket packet;
+                                IFormatter formatter = new BinaryFormatter();
+                                using (var stream = new MemoryStream(data))
+                                {
+                                    packet = (DrawingPacket)formatter.Deserialize(stream);
+                                }
+
+                                // To invoke outside of STA thread
+                                this.Dispatcher.BeginInvoke(
+                                    (Action)(() => this.DrawLine((Color)ColorConverter.ConvertFromString(packet.Color), packet.Points)));
+                                errorCount = 0;
+                            }
+                            catch (Exception)
+                            {
+                                if (errorCount++ > 50)
+                                {
+                                    MessageBox.Show("Too many errors in received data!");
+                                    this.Close();
+                                }
+                            }
+                        }
+                    });
         }
 
+        /// <summary>
+        ///     Sends drawing data to the server.
+        /// </summary>
+        /// <param name="color"> Color of the drawn line. </param>
+        /// <param name="points"> Points of the drawn line. </param>
         private void SendDrawingData(Color color, double[] points)
         {
             byte[] data;
-            DrawingPacket drawingPacket = new DrawingPacket(points, color);
+            var drawingPacket = new DrawingPacket(points, color);
             IFormatter formatter = new BinaryFormatter();
             using (var stream = new MemoryStream())
             {
@@ -170,21 +216,30 @@ namespace InteractiveBoard
             }
 
             // Add drawing code and send
-            byte[] packet = new byte[data.Length+1];
+            var packet = new byte[data.Length + 1];
             packet[0] = DrawingCode;
             data.CopyTo(packet, 1);
-            this.udpClient.SendAsync(packet, packet.Length);   
+            this.udpClient.SendAsync(packet, packet.Length);
         }
 
+        /// <summary>
+        ///     Update current brush color upon sliders change.
+        /// </summary>
         private void UpdateColor(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             this.currentColor = Color.FromRgb((byte)this.RSlider.Value, (byte)this.GSlider.Value, (byte)this.BSlider.Value);
         }
 
-        private void MainWindow_OnClosed(object sender, EventArgs e)
+        /// <summary>
+        ///     Validates whether given connection info is a valid IP Address and port.
+        /// </summary>
+        /// <returns> Variable determining the success of validation. </returns>
+        private (bool, IPAddress, int) ValidateConnectionInfo()
         {
-            if (this.connected)
-                this.Disconnect();
+            var ip = IPAddress.Any;
+            var result = int.TryParse(this.PortTextBox.Text, out var port) &&
+                         IPAddress.TryParse(this.ServerTextBox.Text, out ip);
+            return (result, ip, port);
         }
     }
 
@@ -192,6 +247,7 @@ namespace InteractiveBoard
     internal struct DrawingPacket
     {
         public double[] Points;
+
         public string Color;
 
         public DrawingPacket(double[] points, Color color)
@@ -200,6 +256,5 @@ namespace InteractiveBoard
             points.CopyTo(this.Points, 0);
             this.Color = new ColorConverter().ConvertToString(color);
         }
-
     }
 }
