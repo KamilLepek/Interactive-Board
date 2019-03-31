@@ -31,7 +31,7 @@
 
         private bool connected;
 
-        private Color currentColor;
+        private byte[] currentColor;
 
         private Point currentCursorPosition;
 
@@ -40,7 +40,7 @@
         public MainWindow()
         {
             this.InitializeComponent();
-            this.currentColor = Colors.Black;
+            this.currentColor = new byte[] {0, 0, 0};
         }
 
         /// <summary>
@@ -90,11 +90,11 @@
             this.Disconnect();
         }
 
-        private void DrawLine(Color color, double[] points)
+        private void DrawLine(byte[] color, double[] points)
         {
             var line = new Line
                            {
-                               Stroke = new SolidColorBrush(color),
+                               Stroke = new SolidColorBrush(Color.FromRgb(color[0], color[1], color[2])),
                                X1 = points[0],
                                Y1 = points[1],
                                X2 = points[2],
@@ -184,7 +184,7 @@
 
                                 // To invoke outside of STA thread
                                 this.Dispatcher.BeginInvoke(
-                                    (Action)(() => this.DrawLine((Color)ColorConverter.ConvertFromString(packet.Color), packet.Points)));
+                                    (Action)(() => this.DrawLine(packet.Color, packet.Points)));
                                 errorCount = 0;
                             }
                             catch (Exception)
@@ -204,7 +204,7 @@
         /// </summary>
         /// <param name="color"> Color of the drawn line. </param>
         /// <param name="points"> Points of the drawn line. </param>
-        private void SendDrawingData(Color color, double[] points)
+        private void SendDrawingData(byte[] color, double[] points)
         {
             byte[] data;
             var drawingPacket = new DrawingPacket(points, color);
@@ -227,7 +227,8 @@
         /// </summary>
         private void UpdateColor(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            this.currentColor = Color.FromRgb((byte)this.RSlider.Value, (byte)this.GSlider.Value, (byte)this.BSlider.Value);
+            this.currentColor = new byte[]
+                {(byte)this.RSlider.Value, (byte)this.GSlider.Value, (byte)this.BSlider.Value};
         }
 
         /// <summary>
@@ -248,13 +249,14 @@
     {
         public double[] Points;
 
-        public string Color;
+        public byte[] Color;
 
-        public DrawingPacket(double[] points, Color color)
+        public DrawingPacket(double[] points, byte[] color)
         {
             this.Points = new double[4];
             points.CopyTo(this.Points, 0);
-            this.Color = new ColorConverter().ConvertToString(color);
+            this.Color = new byte[3];
+            color.CopyTo(this.Color, 0);
         }
     }
 }
